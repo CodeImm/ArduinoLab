@@ -10,7 +10,7 @@ long microphoneValue = 0;
 int frequency = 5000;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 }
 
 void loop() {
@@ -35,7 +35,7 @@ void loop() {
         outbound.beginPacket("value"); // Start a packet with the address called "value".
         outbound.addLong(microphoneValue); // Add a reading of analog 0.
         outbound.streamPacket(&Serial); // End the packet and stream it.
-
+        outbound.streamEmpty(&Serial, "");
         noTone(SoundPin);
       }
     }

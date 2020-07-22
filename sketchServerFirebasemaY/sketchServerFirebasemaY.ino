@@ -2,6 +2,11 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include "FirebaseESP8266.h"
+#include <AsciiMassagePacker.h>
+#include <AsciiMassageParser.h>
+
+AsciiMassageParser inbound;
+AsciiMassagePacker outbound;
 
 
 // Set these to run example.
@@ -18,7 +23,7 @@
 //IPAddress gateway(192, 168, 43, 1);   //IP Address of your WiFi Router (Gateway)
 //IPAddress subnet(255, 255, 255, 0);  //Subnet mask
 //IPAddress dns(8, 8, 8, 8);  //DNS
- 
+
 //const char* deviceName = "circuits4you.com";
 
 //Define Firebase Data objects
@@ -32,6 +37,7 @@ FirebaseJson json2;
 //const char* WIFI_PASSWORD = STAPSK;
 
 String frequency = "";
+int frequencyInt = 0;
 String path = "/status";
 String userFirebase = "null";
 String userNodeID = "currentUser";
@@ -43,7 +49,7 @@ String chartId = "";
 String chartPath = "";
 String inString = "";
 String msg = "";
-boolean bp = false; 
+boolean bp = false;
 
 unsigned long period_time = (long)60000;
 // переменная таймера, максимально большой целочисленный тип (он же uint32_t)
@@ -158,13 +164,13 @@ void setup(void) {
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
 
-//  WiFi.hostname(deviceName);      // DHCP Hostname (useful for finding device for static lease)
+  //  WiFi.hostname(deviceName);      // DHCP Hostname (useful for finding device for static lease)
 
-  
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-//    WiFi.config(staticIP, gateway, subnet);
-//  WiFi.softAPConfig(local_IP, gateway, subnet);
-//  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+  //    WiFi.config(staticIP, gateway, subnet);
+  //  WiFi.softAPConfig(local_IP, gateway, subnet);
+  //  WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
   //  Serial.println("");
 
   // Wait for connection
@@ -176,7 +182,7 @@ void setup(void) {
   //  Serial.print("Connected to ");
   //  Serial.println(WIFI_SSID);
   //  Serial.print("IP address: ");
-//    Serial.println(WiFi.localIP());
+  //    Serial.println(WiFi.localIP());
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
@@ -213,6 +219,22 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
 
+  if ( inbound.parseStream( &Serial ) ) {
+    // parse completed massage elements here.
+    if ( inbound.fullMatch ("value") ) {
+      // Get the first long.
+      long value = inbound.nextLong();
+      String valueStr = String(value);
+      json2.set("x", frequency);
+      json2.set("y", valueStr);
+
+      if (Firebase.pushJSON(firebaseData3, chartPath, json2)) {
+      } else {
+        // Serial.println(firebaseData3.errorReason());
+      }
+    }
+  }
+
   if (!Firebase.readStream(firebaseData1)) {
     //    Serial.println();
     //    Serial.println("Can't read stream data");
@@ -234,55 +256,48 @@ void loop(void) {
   }
 
   if (firebaseData2.streamTimeout()) {
-//    Serial.println();
-//    Serial.println("Stream timeout, resume streaming...");
-//    Serial.println();
+    //    Serial.println();
+    //    Serial.println("Stream timeout, resume streaming...");
+    //    Serial.println();
   }
   if (firebaseData1.streamAvailable()) {
     if (Firebase.getString(firebaseData1, "/status/currentUser", userFirebase)) {
-        if (userFirebase != "null" || user != userFirebase) {
-          user = userFirebase;
-          chartPath = "/users/" + user;
-          if (Firebase.getString(firebaseData3, "/status/chartId", chartId)) {
-            chartPath += "/charts/" + chartId;
-            //            Serial.println(chartPath);
-          } else {
-            // Serial.println(firebaseData3.errorReason());
-          }
-          my_timer = millis();
+      if (userFirebase != "null" || user != userFirebase) {
+        user = userFirebase;
+        chartPath = "/users/" + user;
+        if (Firebase.getString(firebaseData3, "/status/chartId", chartId)) {
+          chartPath += "/charts/" + chartId;
+          //            Serial.println(chartPath);
+        } else {
+          // Serial.println(firebaseData3.errorReason());
         }
-      
+        my_timer = millis();
+      }
+
     } else {
       // Serial.println(firebaseData1.errorReason());
     }
   }
-//  if (millis() - my_timer > 10000) {//period_time
-//    user = "null";
-//    if (Firebase.setString(firebaseData1, "/status/currentUser", "null")) {      
-//    }
-//  }
-  
+  //  if (millis() - my_timer > 10000) {//period_time
+  //    user = "null";
+  //    if (Firebase.setString(firebaseData1, "/status/currentUser", "null")) {
+  //    }
+  //  }
+
   if (firebaseData2.streamAvailable()) {
     if (user != "null") {
       // дейтвия, которые хотим выполнить один раз за период
       Firebase.getBool(firebaseData2, path + "/" + bpStateNodeID, bp);
       if (bp == true) {
         my_timer = millis();   // "сбросить" таймер
-        bp=false;
+        bp = false;
         Firebase.setBool(firebaseData2, path + "/" + bpStateNodeID, false);
         if (Firebase.getString(firebaseData3, "/status/frequency", frequency)) {
-          Serial.print(frequency);
-          delay(1200);
-            if (Serial.available()) {
-              inString = Serial.readString();
-            }
-          json2.set("x", frequency);
-          json2.set("y", inString);
-  
-          if (Firebase.pushJSON(firebaseData3, chartPath, json2)) {
-          } else {
-            // Serial.println(firebaseData3.errorReason());
-          }
+          frequencyInt = frequency.toInt();
+          outbound.beginPacket("frequency"); // Start a packet with the address called "value".
+          outbound.addInt( frequencyInt ); // Add a reading of analog 0.
+          outbound.streamPacket(&Serial); // End the packet and stream it.
+          outbound.streamEmpty(&Serial, "");
         } else {
           // Serial.println(firebaseData3.errorReason());
         }
