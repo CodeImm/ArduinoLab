@@ -182,7 +182,7 @@ void setup(void) {
   //  Serial.print("Connected to ");
   //  Serial.println(WIFI_SSID);
   //  Serial.print("IP address: ");
-  //    Serial.println(WiFi.localIP());
+  //  Serial.println(WiFi.localIP());
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
