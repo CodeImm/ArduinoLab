@@ -1,10 +1,10 @@
 #include <ESP8266WiFi.h>
 #include "FirebaseESP8266.h"
-//#include <AsciiMassagePacker.h>
-//#include <AsciiMassageParser.h>
-//
-//AsciiMassageParser inbound;
-//AsciiMassagePacker outbound;
+#include <AsciiMassagePacker.h>
+#include <AsciiMassageParser.h>
+
+AsciiMassageParser inbound;
+AsciiMassagePacker outbound;
 
 #define FIREBASE_HOST "phys-labs.firebaseio.com"
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
@@ -58,45 +58,23 @@ void setup(void) {
 }
 
 void loop(void) {
-
-
-  while (Serial.available()) {
-    // получаем новый байт:
-    char inChar = (char)Serial.read();
-    // добавляем его к inputString:
-    inputString += inChar;
-    // если получили символ новой строки, оповещаем программу об этом,
-    // чтобы она могла принять дальнейшие действия.
-    if (inChar == '\n') {
-      int inputInt = inputString.toInt();
-      json2.set("x", frequency);
-      json2.set("y", inputInt);
-;
-      Firebase.pushJSON(firebaseData3, chartPath, json2);
-
-      // очищаем строку:
-      inputString = "";
-      stringComplete = true;
-    }
-  }
-
   Firebase.readStream(firebaseData1);
   firebaseData1.streamTimeout();
   Firebase.readStream(firebaseData2);
   firebaseData2.streamTimeout();
 
-  //  if ( inbound.parseStream( &Serial ) ) {
-  //    // parse completed massage elements here.
-  //    if ( inbound.fullMatch ("value") ) {
-  //      // Get the first long.
-  //      long value = inbound.nextLong();
-  //      String valueStr = String(value);
-  //      json2.set("x", frequency);
-  //      json2.set("y", valueStr);
-  //
-  //      Firebase.pushJSON(firebaseData3, chartPath, json2);
-  //    }
-  //  }
+    if ( inbound.parseStream( &Serial ) ) {
+      // parse completed massage elements here.
+      if ( inbound.fullMatch ("v") ) {
+        // Get the first long.
+        long value = inbound.nextLong();
+        String valueStr = String(value);
+        json2.set("x", frequency);
+        json2.set("y", valueStr);
+  
+        Firebase.pushJSON(firebaseData3, chartPath, json2);
+      }
+    }
 
   if (firebaseData1.streamAvailable()) {
     if (Firebase.getString(firebaseData1, "/status/currentUser", userFirebase)) {
@@ -118,11 +96,6 @@ void loop(void) {
       // Serial.println(firebaseData1.errorReason());
     }
   }
-  //  if (millis() - my_timer > 10000) {//period_time
-  //    user = "null";
-  //    if (Firebase.setString(firebaseData1, "/status/currentUser", "null")) {
-  //    }
-  //  }
 
   if (firebaseData2.streamAvailable()) {
     if (millis() - my_timer > 100000) {//period_time
@@ -138,12 +111,10 @@ void loop(void) {
         bp = false;
         Firebase.setBool(firebaseData2, path + "/" + bpStateNodeID, false);
         if (Firebase.getInt(firebaseData3, "/status/frequency", frequency)) {
-          Serial.println(frequency, DEC);
-          //          Serial.flush();
-          //                    outbound.beginPacket("frequency"); // Start a packet with the address called "value".
-          //                    outbound.addInt( frequency ); // Add a reading of analog 0.
-          //                    outbound.streamPacket(&Serial); // End the packet and stream it.
-          //                    outbound.streamEmpty(&Serial, "");
+          outbound.beginPacket("f"); // Start a packet with the address called "value".
+          outbound.addInt( frequency ); // Add a reading of analog 0.
+          outbound.streamPacket(&Serial); // End the packet and stream it.
+          outbound.streamEmpty(&Serial, "");
         }
       }
     }
