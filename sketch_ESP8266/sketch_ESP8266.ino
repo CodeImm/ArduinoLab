@@ -47,14 +47,14 @@ void setup(void) {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
-  Firebase.setBool(firebaseDataIsReady, path + "/" + "isReady", true);
+  
   //  Serial.println("isReady");
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
-
+  
+  Firebase.setBool(firebaseDataIsReady, path + "/" + "isReady", true);
   Firebase.beginStream(firebaseData1, path + "/" + userNodeID);
   Firebase.beginStream(firebaseData2, path + "/" + bpStateNodeID);
-
 }
 
 void loop(void) {
@@ -73,47 +73,41 @@ void loop(void) {
         json2.set("y", valueStr);
   
         Firebase.pushJSON(firebaseData3, chartPath, json2);
+        Firebase.setBool(firebaseData2, path + "/" + bpStateNodeID, false);
       }
     }
 
   if (firebaseData1.streamAvailable()) {
-    if (Firebase.getString(firebaseData1, "/status/currentUser", userFirebase)) {
-      if (userFirebase == "null" || user != userFirebase) {
-        user = userFirebase;
-        //        Serial.println(user);
+//    Serial.println(firebaseData1.stringData());
+      if (firebaseData1.stringData() != "null" && user != firebaseData1.stringData()) {
+        user = firebaseData1.stringData();
+//        Serial.println(user);
         chartPath = "/users/" + user;
         if (Firebase.getString(firebaseData3, "/status/chartId", chartId)) {
           chartPath += "/charts/" + chartId;
-          //                      Serial.println(chartPath);
-        } else {
-          // Serial.println(firebaseData3.errorReason());
         }
         my_timer = millis();
-        //        Serial.println(my_timer);
       }
-
-    } else {
-      // Serial.println(firebaseData1.errorReason());
-    }
   }
-
-  if (firebaseData2.streamAvailable()) {
-    if (millis() - my_timer > 100000) {//period_time
-      //      Serial.println(millis());
+  if (millis() - my_timer > 100000) {//period_time
       user = "null";
       Firebase.setString(firebaseDataIsReady, path + "/" + "power", "off");
-    }
+      Firebase.setString(firebaseData1, "/status/currentUser", "null");
+   }
+   
+  if (firebaseData2.streamAvailable()) {
+//    Serial.println(firebaseData2.boolData());
+//    Serial.println(user);
     if (user != "null") {
-      // дейтвия, которые хотим выполнить один раз за период
-      Firebase.getBool(firebaseData2, path + "/" + bpStateNodeID, bp);
-      if (bp == true) {
+      if (firebaseData2.boolData() == 1) {
+//        Serial.println("условие");
         my_timer = millis();   // "сбросить" таймер
-        bp = false;
-        Firebase.setBool(firebaseData2, path + "/" + bpStateNodeID, false);
+//        bp = false;
         if (Firebase.getInt(firebaseData3, "/status/frequency", frequency)) {
-          outbound.beginPacket("f"); // Start a packet with the address called "value".
-          outbound.addInt( frequency ); // Add a reading of analog 0.
-          outbound.streamPacket(&Serial); // End the packet and stream it.
+//          Serial.println(frequency);
+//          outbound.packOneInt("f", frequency); // Start a packet with the address called "value".
+//          outbound.addInt(  ); // Add a reading of analog 0.
+          outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
           outbound.streamEmpty(&Serial, "");
         }
       }
