@@ -25,7 +25,7 @@ String bpStateNodeID = "bpState";
 String user = "null";
 String chartId = "";
 String chartPath = "";
-
+bool isSignal = 0;
 
 unsigned long period_time = (long)600000;
 // переменная таймера, максимально большой целочисленный тип (он же uint32_t)
@@ -43,21 +43,21 @@ void setup(void) {
   //  Serial.println("isReady");
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
- 
-//  if (!Firebase.beginStream(firebaseData1, path + "/" + userNodeID));
+
+  //  if (!Firebase.beginStream(firebaseData1, path + "/" + userNodeID));
   if (!Firebase.beginStream(firebaseData2, path + "/" + bpStateNodeID));
 
   if (Firebase.getString(firebaseData1, "/status/currentUser")) {
     Serial.println(firebaseData1.stringData());
-      user = firebaseData1.stringData();
-      chartPath = "/users/" + user;
-      if (Firebase.getString(firebaseData3, "/status/chartId", chartId)) {
-        chartPath += "/charts/" + chartId;
-      }
-//      Serial.println(chartPath);
-      my_timer = millis();
+    user = firebaseData1.stringData();
+    chartPath = "/users/" + user;
+    if (Firebase.getString(firebaseData3, "/status/chartId", chartId)) {
+      chartPath += "/charts/" + chartId;
     }
-    
+    //      Serial.println(chartPath);
+    my_timer = millis();
+  }
+
   if (!Firebase.setBool(firebaseDataIsReady, path + "/" + "isReady", true));
 }
 
@@ -66,14 +66,18 @@ void loop(void) {
   if (!firebaseData2.streamTimeout());
 
   if (firebaseData2.streamAvailable()) {
-    Serial.println(firebaseData2.boolData());
-      if (firebaseData2.boolData() == 1) {
-        my_timer = millis();   // "сбросить" таймер
-        if (Firebase.getInt(firebaseData3, "/status/frequency", frequency)) {
-          outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
-          outbound.streamEmpty(&Serial, "");
-        }
-      }
+//    Serial.println("firebase signal: " + firebaseData2.boolData());
+    isSignal = firebaseData2.boolData();
+  }
+  
+  if (isSignal == 1) {
+//    Serial.println(isSignal);
+    isSignal = 0;
+    my_timer = millis();   // "сбросить" таймер
+    if (Firebase.getInt(firebaseData3, "/status/frequency", frequency)) {
+      outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
+      outbound.streamEmpty(&Serial, "");
+    }
   }
 
   if ( inbound.parseStream( &Serial ) ) {
@@ -89,7 +93,7 @@ void loop(void) {
       if (!Firebase.pushJSON(firebaseData3, chartPath, json2));
     }
   }
-  
+
   if (millis() - my_timer > period_time) {//
     user = "null";
     if (!Firebase.setString(firebaseData1, "/status/currentUser", "null"));
