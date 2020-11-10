@@ -18,7 +18,7 @@ AsciiMassagePacker outbound;
 //FirebaseData firebaseDataIsReady;
 
 int frequency = 2000;
-String path = "/status";
+String path = "/labs/2/status";
 String userNodeID = "currentUser";
 String bpStateNodeID = "bpState";
 String user = "null";
@@ -53,16 +53,16 @@ void setup(void) {
   //  if (!Firebase.beginStream(firebaseData2, path + "/" + bpStateNodeID));
   //
 
-  user = Firebase.getString("/status/currentUser");
+  user = Firebase.getString("labs/2/status/currentUser");
   chartPath = "/users/" + user;
-  chartId = Firebase.getString("/status/chartId");
-  chartPath += "/charts/" + chartId;
+  chartId = Firebase.getString("labs/2/status/chartId");
+  chartPath += "/charts/2/" + chartId;
 
   Serial.println(chartPath);
   my_timer = millis();
   Serial.println(my_timer);
   Firebase.setString(path + "/" + "isReady", "true");
-  Firebase.stream("/status/bpState");
+  Firebase.stream("labs2/2/status/bpState");
 }
 
 void loop(void) {
@@ -72,7 +72,7 @@ void loop(void) {
   }
   if ( isOk == "true" && Firebase.available()) {
     FirebaseObject event = Firebase.readEvent();
-    isSignal = Firebase.getString("/status/bpState");
+    isSignal = Firebase.getString("/labs/2/status/bpState");
 //    Serial.println("firebase signal: " + isSignal);
     //    Serial.println(event.getString("type"));
     //    Serial.println(event.getString("path"));
@@ -85,19 +85,19 @@ void loop(void) {
     isSignal = "false";
     isOk="false";
     my_timer = millis();   // "сбросить" таймер
-    frequency = Firebase.getInt("/status/frequency");
-    outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
+//    frequency = Firebase.getInt("/status/frequency");
+    outbound.streamOneInt(&Serial, "step", 0); // End the packet and stream it.
     outbound.streamEmpty(&Serial, "");
   }
 
   if ( inbound.parseStream( &Serial ) ) {
     // parse completed massage elements here.
-    if ( inbound.fullMatch ("v") ) {
+    if ( inbound.fullMatch ("result") ) {
       // Get the first long.
 
-      long value = inbound.nextLong();
+      float value = inbound.nextFloat();
       String valueStr = String(value);
-      root["x"] = frequency;
+      root["x"] = frequency;//???? шаг
       root["y"] = valueStr;
       Firebase.setString(path + "/" + bpStateNodeID, "false");
       

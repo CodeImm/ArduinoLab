@@ -1,3 +1,9 @@
+#include <AsciiMassagePacker.h>
+#include <AsciiMassageParser.h>
+
+AsciiMassageParser inbound;
+AsciiMassagePacker outbound;
+
 //вариант без библиотеки с прерыванием
 //Выводы шагового двигателя
 #define OUTA 8
@@ -8,7 +14,7 @@
 unsigned long currentTime;
 unsigned long loopTime;
 short currentStep = 0; // Текущий шаг
-const byte dynPin=2;
+const byte dynPin = 2;
 //генерация звука на втором пине
 const int IN_PIN = A0;
 //прием звука на анлоговом пине а0
@@ -18,46 +24,48 @@ float amp;
 int chr;                           //здесь будет храниться принятый символ
 String MyStr;
 char myStr[15];
-int st=0;
+int st = 0;
 void setup()
-{   initStepper();   
-    Serial.begin(9600);
-//установка порта на скорость 9600 бит/сек
-pinMode(dynPin,OUTPUT);
+{ initStepper();
+  Serial.begin(115200);
+  //установка порта на скорость 9600 бит/сек
+  pinMode(dynPin, OUTPUT);
   pinMode(IN_PIN, INPUT);
-frec=3000;//исходное значение частоты 3000 Гц
-  }
-void loop()
-{ 
-    if (Serial.available()) {         //если есть принятый символ,
-    chr = Serial.read();            //  то читаем его
-    if (chr == 'H') { //проверяем его на нужную команду
-      //инициализируем переменные для определения размаха
- for(int i=0;i<128;i++){
-    rewStep();
-        currentTime=millis();
-while ((millis()-currentTime)<300){};    
-        
-      }
-   //шагнули на 4 шага и делаем измерение
-int mn = 1024;
-int mx = 0;
-tone(dynPin,frec);//запускаем генератор звука
-for (int j=0; j < 1000; ++j) {//ищем макс и мин значения амплитуды
-int val = analogRead(IN_PIN);
-mn = min(mn, val);
-mx = max(mx, val);
+  frec = 3000; //исходное значение частоты 3000 Гц
 }
-//нашли размах амплитуды
- amp = (float) (5.0 / MAX_ADC_VALUE* (mx - mn));
-     dtostrf(amp, 5, 3, myStr);  // выводим в строку myStr 1 разряд до, 3 после 
-  MyStr = myStr;
-  MyStr='<'+MyStr+'>';
-   Serial.println(MyStr);
-noTone(dynPin);//отключаем звук
- st++;
-          }
+void loop()
+{
+  if ( inbound.parseStream( &Serial ) ) {     //если есть принятый символ,
+    // parse completed massage elements here.
+    // Does the massage's address match "value"?
+    if ( inbound.fullMatch ("step") ) {
+      //инициализируем переменные для определения размаха
+      for (int i = 0; i < 128; i++) {
+        rewStep();
+        currentTime = millis();
+        while ((millis() - currentTime) < 300) {};
+      }
+      //шагнули на 4 шага и делаем измерение
+      int mn = 1024;
+      int mx = 0;
+      tone(dynPin, frec); //запускаем генератор звука
+      for (int j = 0; j < 1000; ++j) { //ищем макс и мин значения амплитуды
+        int val = analogRead(IN_PIN);
+        mn = min(mn, val);
+        mx = max(mx, val);
+      }
+      //нашли размах амплитуды
+      amp = (float) (5.0 / MAX_ADC_VALUE * (mx - mn));
+//      dtostrf(amp, 5, 3, myStr);  // выводим в строку myStr 1 разряд до, 3 после
+//      MyStr = myStr;
+      noTone(dynPin);//отключаем звук
+      outbound.beginPacket("result"); // Start a packet with the address called "value".
+      outbound.addFloat(amp); // Add a reading of analog 0.
+      outbound.streamPacket(&Serial); // End the packet and stream it.
+      outbound.streamEmpty(&Serial, "");
+      st++;
     }
+  }
 }
 
 void initStepper()
@@ -97,7 +105,7 @@ void setStepleft(short step)
       digitalWrite(OUTC, 0);
       digitalWrite(OUTD, 1);
       break;
-      }
+  }
 }
 void setStepright(short step)
 {
@@ -127,7 +135,7 @@ void setStepright(short step)
       digitalWrite(OUTC, 1);
       digitalWrite(OUTD, 0);
       break;
-      }
+  }
 }
 
 void off()
@@ -142,22 +150,19 @@ void gor()
 {
   setStepright(currentStep);
   delayMicroseconds(holdLengthMicroseconds);
-   }
-   void gol()
+}
+void gol()
 {
   setStepleft(currentStep);
   delayMicroseconds(holdLengthMicroseconds);
-   }
+}
 void fwdStep()
 {
   currentStep = currentStep % 4;
-  gor();currentStep++;
+  gor(); currentStep++;
 }
 void rewStep()
 {
   currentStep = currentStep % 4;
-  gol();currentStep++;
+  gol(); currentStep++;
 }
-
-
-

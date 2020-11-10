@@ -3,8 +3,8 @@
 
 #define FIREBASE_HOST "phys-labs.firebaseio.com"
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
-#define WIFI_SSID "TP-Link_790C"
-#define WIFI_PASSWORD "16956483"
+#define WIFI_SSID "koef-324"
+#define WIFI_PASSWORD "A$pddmIedp"
 
 //Define Firebase Data objects
 FirebaseData firebaseData;
