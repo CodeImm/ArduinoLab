@@ -28,7 +28,7 @@ void setup(void) {
   digitalWrite(gpio12Relay, HIGH);
 
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA); //?
+  WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   //  Serial.println("");
 

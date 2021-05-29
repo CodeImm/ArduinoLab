@@ -15,11 +15,11 @@
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
 
 // Mobile WiFi
-// #define WIFI_SSID "Neffos X1 Lite"
-// #define WIFI_PASSWORD "12345678"
+#define WIFI_SSID "realme 7"
+#define WIFI_PASSWORD "60d45dd3604e"
 // Home WiFi
-#define WIFI_SSID "TP-Link_790C"
-#define WIFI_PASSWORD "16956483"
+//#define WIFI_SSID "TP-Link_790C"
+//#define WIFI_PASSWORD "16956483"
 // 324 WiFi
 //#define WIFI_SSID "koef-324"
 //#define WIFI_PASSWORD "A$pddmIedp"
@@ -35,15 +35,14 @@ FirebaseJson jsonXY;
 AsciiMassageParser inbound;
 AsciiMassagePacker outbound;
 
-int frequency = 2000;
-String path = "/status";
-String userNodeID = "currentUser";
-String bpStateNodeID = "bpState";
-String user = "null";
+int shiftValue = 0;
+String path = "/labs/kundtStepper/status";
+String userNodeID = "user";
+String shiftStateNodeID = "shift";
+String user = "";
 String chartId = "";
 String chartPath = "";
-String isSignal = "false";
-String isOk = "true";
+boolean shift = false;
 
 unsigned long period_time = (long)600000;
 // переменная таймера, максимально большой целочисленный тип (он же uint32_t)
@@ -77,7 +76,7 @@ void setup() {
   // 6. Try to get int data from Firebase
   // The get function returns bool for the status of operation
   // fbdo requires for receiving the data
-  if (Firebase.getString(fbdo, "/status/currentUser")) {
+  if (Firebase.getString(fbdo, "/labs/kundtStepper/status/user")) {
     // Success
     user = fbdo.stringData();
     Serial.print("User: ");
@@ -88,9 +87,9 @@ void setup() {
     Serial.println(fbdo.errorReason());
   }
 
-  chartPath = "/users/" + user;
+  chartPath = "/users/" + user ;
 
-  if (Firebase.getString(fbdo, "/status/chartId")) {
+  if (Firebase.getString(fbdo, "/labs/kundtStepper/status/chartId")) {
     // Success
     chartId = fbdo.stringData();
     Serial.print("Chart ID: ");
@@ -101,7 +100,7 @@ void setup() {
     Serial.println(fbdo.errorReason());
   }
 
-  chartPath += "/charts/" + chartId;
+  chartPath += "/charts/kundtStepper/" + chartId;
 
   Serial.println("Chart Path: " + chartPath);
   my_timer = millis();
@@ -109,7 +108,7 @@ void setup() {
   // 5. Try to set int data to Firebase
   // The set function returns bool for the status of operation
   // fbdo requires for sending the data
-  if (Firebase.setString(fbdo, path + "/" + "isReady", "true")) {
+  if (Firebase.setBool(fbdo, path + "/" + "isReady", true)) {
     // Success
     Serial.println("Ready to go");
   } else {
@@ -124,8 +123,8 @@ void setup() {
     and client was timeout during HTTP stream */
   Firebase.setStreamCallback(fbdoForStream, streamCallback, streamTimeoutCallback);
 
-  //In setup(), set the streaming path to "/status/bpState" and begin stream connection
-  if (!Firebase.beginStream(fbdoForStream, "/status/bpState")) {
+  //In setup(), set the streaming path to "/status/shift" and begin stream connection
+  if (!Firebase.beginStream(fbdoForStream, path + "/shift")) {
     //Could not begin stream connection, then print out the error detail
     Serial.println(fbdoForStream.errorReason());
   }
@@ -141,11 +140,9 @@ void streamCallback(StreamData data) {
   Serial.println(data.dataType());
 
   //Print out the value
-  Serial.println("bpState Stream " + data.stringData());
+  Serial.println("shift Stream " + data.boolData());
 
-  if ( isOk == "true") {
-    isSignal = data.stringData();
-  }
+    shift = data.boolData();
 }
 
 //Global function that notifies when stream connection lost
@@ -159,44 +156,31 @@ void streamTimeoutCallback(bool timeout) {
 
 void loop(void) {
 
-  if (isSignal == "true") {
-    isSignal = "false";
-    isOk = "false";
+  if (shift == true) {
+    shift = false;
     my_timer = millis();   // "сбросить" таймер
 
-    // Получаем частоту сигнала
-    if (Firebase.getInt(fbdo, "/status/frequency")) {
-      // Success
-      frequency = fbdo.intData();
-      Serial.print("frequency: ");
-      Serial.println(frequency);
-    } else {
-      // Failed?, get the error reason from fbdo
-      Serial.print("Error in getInt, ");
-      Serial.println(fbdo.errorReason());
-    }
-
     // Передаем значение ATmega328
-    outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
+    outbound.streamOneInt(&Serial, "H", 9000); // End the packet and stream it.
     outbound.streamEmpty(&Serial, "");
   }
 
   if ( inbound.parseStream( &Serial ) ) {
     // parse completed massage elements here.
-    if ( inbound.fullMatch ("v") ) {
+    if ( inbound.fullMatch ("V") ) {
       // Get the first long.
-      long value = inbound.nextLong();
+      long value = inbound.nextFloat();
 
       String valueStr = String(value);
 
-      jsonXY.set("x", frequency);
+      jsonXY.set("x", shiftValue);
       jsonXY.set("y", valueStr);
 
-      if (Firebase.setString(fbdo, path + "/" + bpStateNodeID, "false")) {
+      if (Firebase.setBool(fbdo, path + "/" + shiftStateNodeID, false)) {
         // Success
       } else {
         // Failed?, get the error reason from fbdo
-        Serial.print("Error in setString, ");
+        Serial.print("Error in setBool, ");
         Serial.println(fbdo.errorReason());
       }
 
@@ -207,16 +191,16 @@ void loop(void) {
       } else {
         Serial.println(fbdo.errorReason());
       }
-
-      isOk = "true";
+      
+      shiftValue++;
     }
   }
 
   if (millis() - my_timer > period_time) {
-    user = "null";
-    Firebase.setString(fbdo, "/status/currentUser", "null");
-    Firebase.setString(fbdo, path + "/" + "isReady", "false");
-    Firebase.setString(fbdo, path + "/" + "isTimeOut", "true");
-    Firebase.setString(fbdo, path + "/" + "power", "off");
+    user = "";
+    Firebase.setString(fbdo, path + "/" + "user", "");
+    Firebase.setBool(fbdo, path + "/" + "isReady", false);
+    Firebase.setBool(fbdo, path + "/" + "isTimeOut", true);
+    Firebase.setBool(fbdo, path + "/" + "isPowered", false);
   }
 }
