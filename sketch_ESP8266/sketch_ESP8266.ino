@@ -18,8 +18,10 @@
 // #define WIFI_SSID "Neffos X1 Lite"
 // #define WIFI_PASSWORD "12345678"
 // Home WiFi
-#define WIFI_SSID "TP-Link_790C"
-#define WIFI_PASSWORD "16956483"
+// #define WIFI_SSID "TP-Link_790C"
+// #define WIFI_PASSWORD "16956483"
+#define WIFI_SSID "4G-UFI-954054"
+#define WIFI_PASSWORD "DaniIl_1998"
 // 324 WiFi
 //#define WIFI_SSID "koef-324"
 //#define WIFI_PASSWORD "A$pddmIedp"
@@ -35,15 +37,21 @@ FirebaseJson jsonXY;
 AsciiMassageParser inbound;
 AsciiMassagePacker outbound;
 
+String URL_TO_LAB = "/labs/kundt";
+String URL_TO_USER_ID = "/labs/kundt/userId";
+String URL_TO_CHART_ID = "/labs/kundt/chartId";
+String URL_TO_IS_READY = "/labs/kundt/isReady";
+String URL_TO_EXECUTE = "/labs/kundt/toExecute";
+String URL_TO_IS_TIME_OUT = "/labs/kundt/isTimeOut";
+String URL_TO_FREQUENCY = "/labs/kundt/frequency";
+String URL_TO_SWITCH_STATE = "/labs/kundt/switchState";
+
 int frequency = 2000;
-String path = "/status";
-String userNodeID = "currentUser";
-String bpStateNodeID = "bpState";
-String user = "null";
+String userId = "";
 String chartId = "";
-String chartPath = "";
-String isSignal = "false";
-String isOk = "true";
+String URL_TO_CHART = "";
+bool toExecute = false;
+bool isOk = true;
 
 unsigned long period_time = (long)600000;
 // переменная таймера, максимально большой целочисленный тип (он же uint32_t)
@@ -77,20 +85,18 @@ void setup() {
   // 6. Try to get int data from Firebase
   // The get function returns bool for the status of operation
   // fbdo requires for receiving the data
-  if (Firebase.getString(fbdo, "/status/currentUser")) {
+  if (Firebase.getString(fbdo, URL_TO_USER_ID)) {
     // Success
-    user = fbdo.stringData();
+    userId = fbdo.stringData();
     Serial.print("User: ");
-    Serial.println(user);
+    Serial.println(userId);
   } else {
     // Failed?, get the error reason from fbdo
     Serial.print("Error in getString, ");
     Serial.println(fbdo.errorReason());
   }
 
-  chartPath = "/users/" + user;
-
-  if (Firebase.getString(fbdo, "/status/chartId")) {
+  if (Firebase.getString(fbdo, URL_TO_CHART_ID)) {
     // Success
     chartId = fbdo.stringData();
     Serial.print("Chart ID: ");
@@ -101,15 +107,15 @@ void setup() {
     Serial.println(fbdo.errorReason());
   }
 
-  chartPath += "/charts/" + chartId;
+  URL_TO_CHART += "/charts/kundt/users/" + userId + "/" + chartId;
 
-  Serial.println("Chart Path: " + chartPath);
+  Serial.println("Chart Path: " + URL_TO_CHART);
   my_timer = millis();
 
   // 5. Try to set int data to Firebase
   // The set function returns bool for the status of operation
   // fbdo requires for sending the data
-  if (Firebase.setString(fbdo, path + "/" + "isReady", "true")) {
+  if (Firebase.setBool(fbdo, URL_TO_IS_READY, true)) {
     // Success
     Serial.println("Ready to go");
   } else {
@@ -125,7 +131,7 @@ void setup() {
   Firebase.setStreamCallback(fbdoForStream, streamCallback, streamTimeoutCallback);
 
   //In setup(), set the streaming path to "/status/bpState" and begin stream connection
-  if (!Firebase.beginStream(fbdoForStream, "/status/bpState")) {
+  if (!Firebase.beginStream(fbdoForStream, URL_TO_EXECUTE)) {
     //Could not begin stream connection, then print out the error detail
     Serial.println(fbdoForStream.errorReason());
   }
@@ -141,10 +147,10 @@ void streamCallback(StreamData data) {
   Serial.println(data.dataType());
 
   //Print out the value
-  Serial.println("bpState Stream " + data.stringData());
+  Serial.println("bpState Stream " + data.boolData());
 
-  if ( isOk == "true") {
-    isSignal = data.stringData();
+  if ( isOk == true) {
+    toExecute = data.boolData();
   }
 }
 
@@ -159,13 +165,13 @@ void streamTimeoutCallback(bool timeout) {
 
 void loop(void) {
 
-  if (isSignal == "true") {
-    isSignal = "false";
-    isOk = "false";
+  if (toExecute == true) {
+    toExecute = false;
+    isOk = false;
     my_timer = millis();   // "сбросить" таймер
 
     // Получаем частоту сигнала
-    if (Firebase.getInt(fbdo, "/status/frequency")) {
+    if (Firebase.getInt(fbdo, URL_TO_FREQUENCY)) {
       // Success
       frequency = fbdo.intData();
       Serial.print("frequency: ");
@@ -187,12 +193,10 @@ void loop(void) {
       // Get the first long.
       long value = inbound.nextLong();
 
-      String valueStr = String(value);
-
       jsonXY.set("x", frequency);
-      jsonXY.set("y", valueStr);
+      jsonXY.set("y", String(value));
 
-      if (Firebase.setString(fbdo, path + "/" + bpStateNodeID, "false")) {
+      if (Firebase.setBool(fbdo, URL_TO_EXECUTE, false)) {
         // Success
       } else {
         // Failed?, get the error reason from fbdo
@@ -200,7 +204,7 @@ void loop(void) {
         Serial.println(fbdo.errorReason());
       }
 
-      if (Firebase.pushJSON(fbdo, chartPath, jsonXY)) {
+      if (Firebase.pushJSON(fbdo, URL_TO_CHART, jsonXY)) {
         Serial.println(fbdo.dataPath());
         Serial.println(fbdo.pushName());
         Serial.println(fbdo.dataPath() + "/" + fbdo.pushName());
@@ -208,15 +212,15 @@ void loop(void) {
         Serial.println(fbdo.errorReason());
       }
 
-      isOk = "true";
+      isOk = true;
     }
   }
 
   if (millis() - my_timer > period_time) {
-    user = "null";
-    Firebase.setString(fbdo, "/status/currentUser", "null");
-    Firebase.setString(fbdo, path + "/" + "isReady", "false");
-    Firebase.setString(fbdo, path + "/" + "isTimeOut", "true");
-    Firebase.setString(fbdo, path + "/" + "power", "off");
+    userId = "";
+    Firebase.setString(fbdo, URL_TO_USER_ID, "");
+    Firebase.setBool(fbdo, URL_TO_IS_READY, false);
+    Firebase.setBool(fbdo, URL_TO_IS_TIME_OUT, true);
+    Firebase.setString(fbdo, URL_TO_SWITCH_STATE, "off");
   }
 }

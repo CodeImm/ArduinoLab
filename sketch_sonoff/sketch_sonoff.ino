@@ -4,17 +4,22 @@
 #define FIREBASE_HOST "phys-labs.firebaseio.com"
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
 // Home WiFi
-#define WIFI_SSID "TP-Link_790C"
-#define WIFI_PASSWORD "16956483"
+#define WIFI_SSID "4G-UFI-954054"
+#define WIFI_PASSWORD "DaniIl_1998"
+//#define WIFI_SSID "TP-Link_790C"
+//#define WIFI_PASSWORD "16956483"
+// Mobile WiFi
 //#define WIFI_SSID "Neffos X1 Lite"
 //#define WIFI_PASSWORD "12345678"
+// 324 WiFi
 //#define WIFI_SSID "koef-324"
 //#define WIFI_PASSWORD "A$pddmIedp"
 
 //Define Firebase Data objects
 FirebaseData firebaseData;
 
-String power = "off";
+String URL_TO_SWITCH_STATE = "labs/kundt/switchState";
+String switchState = "off";
 
 int gpio13Led = 13;
 int gpio12Relay = 12;
@@ -35,7 +40,7 @@ void setup(void) {
   if (WiFi.getAutoConnect() != true) {   //configuration will be saved into SDK flash area
     WiFi.setAutoConnect(true);   //on power-on automatically connects to last used hwAP
   }
-  WiFi.setAutoReconnect(true);    //automatically reconnects to hwAP in case it's disconnected
+  WiFi.setAutoReconnect(true);    //automatically reconnects to hwAP in case it's disconnected 
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
@@ -59,7 +64,7 @@ void setup(void) {
 
   //In setup(), set the streaming path to "/test/data" and begin stream connection
 
-  if (!Firebase.beginStream(firebaseData, "/status/power")) {
+  if (!Firebase.beginStream(firebaseData, URL_TO_SWITCH_STATE)) {
     //Could not begin stream connection, then print out the error detail
     //    Serial.println(firebaseData.errorReason());
   }
@@ -69,13 +74,13 @@ void setup(void) {
 void streamCallback(StreamData data) {
   //Stream data can be many types which can be determined from function dataType
 
-  power = data.stringData();
+  switchState = data.stringData();
 
-  if (power == "off") {
+  if (switchState == "off") {
     digitalWrite(gpio13Led, HIGH);
     digitalWrite(gpio12Relay, LOW);
     delay(1000);
-  } else if (power == "on") {
+  } else if (switchState == "on") {
     digitalWrite(gpio13Led, LOW);
     digitalWrite(gpio12Relay, HIGH);
     delay(1000);

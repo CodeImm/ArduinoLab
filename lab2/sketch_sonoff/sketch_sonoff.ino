@@ -3,8 +3,10 @@
 
 #define FIREBASE_HOST "phys-labs.firebaseio.com"
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
-#define WIFI_SSID "koef-324"
-#define WIFI_PASSWORD "A$pddmIedp"
+#define WIFI_SSID "Neffos X1 Lite"
+#define WIFI_PASSWORD "12345678"
+//#define WIFI_SSID "koef-324"
+//#define WIFI_PASSWORD "A$pddmIedp"
 
 //Define Firebase Data objects
 FirebaseData firebaseData;
