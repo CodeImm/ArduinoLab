@@ -17,9 +17,9 @@ void loop() {
   if ( inbound.parseStream( &Serial ) ) {
     // parse completed massage elements here.
     // Does the massage's address match "value"?
-    if ( inbound.fullMatch ("frequency") ) {
+    if ( inbound.fullMatch ("f") ) {
       frequency = inbound.nextInt();
-      if (frequency > 32 && frequency < 10000) {
+      if (frequency >= 30 && frequency <= 10000) {
         //инициализируем переменные для определения размаха
         int mn = 1024;
         int mx = 0;
@@ -30,9 +30,9 @@ void loop() {
           mx = max(mx, val);
         }
         //нашли размах амплитуды
-        microphoneValue = mx - mn;
+        microphoneValue = (float) mx - mn;
 
-        outbound.beginPacket("value"); // Start a packet with the address called "value".
+        outbound.beginPacket("v"); // Start a packet with the address called "value".
         outbound.addLong(microphoneValue); // Add a reading of analog 0.
         outbound.streamPacket(&Serial); // End the packet and stream it.
         outbound.streamEmpty(&Serial, "");

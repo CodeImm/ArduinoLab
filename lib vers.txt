@@ -1,0 +1,2 @@
+asciiMasssage 1.6.0
+ArduinoJson 6.18.5
