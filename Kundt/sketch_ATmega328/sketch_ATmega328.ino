@@ -30,7 +30,7 @@ void loop() {
           mx = max(mx, val);
         }
         //нашли размах амплитуды
-        microphoneValue = mx - mn;
+        microphoneValue = (float) mx - mn;
 
         outbound.beginPacket("v"); // Start a packet with the address called "value".
         outbound.addLong(microphoneValue); // Add a reading of analog 0.

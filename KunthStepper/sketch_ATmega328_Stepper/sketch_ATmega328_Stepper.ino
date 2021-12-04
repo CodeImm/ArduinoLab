@@ -15,12 +15,13 @@ const int mm = STEPS_PER_REVOLUTION / 40;
 int count = 0;
 
 bool isInitialized = false;
+bool firstStep = true;
 
 const int microphonePin = A0;
 const int SOUND_PIN = 2;
 float microphoneValue = 0;
 int frequency = 5000;
-int engineStep = 10;
+int engineStep = 48; // 2mm
 
 Stepper myStepper(STEPS_PER_REVOLUTION, 8, 9, 10, 11); //подключение к пинам 8…11 на Ардуино
 
@@ -40,18 +41,22 @@ void loop() {
   if (isInitialized == false) {
     // print state to Serial Monitor
     Serial.println(buttonState);
-    myStepper.step(cm / 5);
-    delay(100);
+    myStepper.step(-(cm / 10));
   }
 
   if (buttonState == 0 && !isInitialized) {
     isInitialized = true;
+    firstStep = true;
     outbound.beginPacket("I");
     outbound.streamPacket(&Serial);
     outbound.streamEmpty(&Serial, "");
   }
 
   if ( inbound.parseStream( &Serial ) ) {
+    if ( inbound.fullMatch ("I") ) {
+      isInitialized = false;
+    }
+
     if ( inbound.fullMatch ("F") ) {
       frequency = inbound.nextInt();
     }
@@ -62,10 +67,16 @@ void loop() {
 
     // parse completed massage elements here.
     // Does the massage's address match "value"?
-    if ( inbound.fullMatch ("L") ) {
-      Serial.print("Move left "); //по часовой стрелке
+    if ( inbound.fullMatch ("R") ) {
+      Serial.print("Move right "); //по часовой стрелке
       Serial.println( ++count);
-      myStepper.step(-engineStep);
+      Serial.print("!firstStep^ ");
+      Serial.println(!firstStep);
+      if (firstStep) {
+        firstStep = false;
+      } else {
+        myStepper.step(engineStep);
+      }
 
       delay(1000);
       if (frequency >= 30 && frequency <= 10000) {

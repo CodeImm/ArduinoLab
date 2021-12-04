@@ -37,21 +37,31 @@ FirebaseJson jsonXY;
 AsciiMassageParser inbound;
 AsciiMassagePacker outbound;
 
-String URL_TO_LAB = "/labs/kundt";
-String URL_TO_USER_ID = "/labs/kundt/userId";
-String URL_TO_CHART_ID = "/labs/kundt/chartId";
-String URL_TO_IS_READY = "/labs/kundt/isReady";
-String URL_TO_EXECUTE = "/labs/kundt/toExecute";
-String URL_TO_IS_TIME_OUT = "/labs/kundt/isTimeOut";
-String URL_TO_FREQUENCY = "/labs/kundt/frequency";
-String URL_TO_SWITCH_STATE = "/labs/kundt/switchState";
+String URL_TO_LAB = "/labs/kundtStepper";
+String URL_TO_USER_ID = "/labs/kundtStepper/userId";
+String URL_TO_CHART_ID = "/labs/kundtStepper/chartId";
+String URL_TO_IS_READY = "/labs/kundtStepper/isReady";
+String URL_TO_EXECUTE = "/labs/kundtStepper/toExecute";
+String URL_TO_IS_TIME_OUT = "/labs/kundtStepper/isTimeOut";
+String URL_TO_FREQUENCY = "/labs/kundtStepper/frequency";
+String URL_TO_STEP = "/labs/kundtStepper/step";
+String URL_TO_SWITCH_STATE = "/labs/kundtStepper/switchState";
 
-int frequency = 2000;
+const int INITIAL_TUBE_LENGTH = 14;
+const int MAX_TUBE_LENGTH = 210;
+const String DIRECTION = "R";
+
 String userId = "";
 String chartId = "";
 String URL_TO_CHART = "";
 bool toExecute = false;
 bool isOk = true;
+bool isInitialized = false;
+int frequency = 2000;
+int engineStep = 10;
+
+int measurementsNumber = 0;
+int measurementCount = 0;
 
 unsigned long period_time = (long)600000;
 // переменная таймера, максимально большой целочисленный тип (он же uint32_t)
@@ -87,7 +97,7 @@ void setup() {
   // fbdo requires for receiving the data
   if (Firebase.getString(fbdo, URL_TO_USER_ID)) {
     // Success
-    userId = fbdo.stringData();
+    userId = fbdo.stringData().substring(1, fbdo.stringData().length() - 1);
     Serial.print("User: ");
     Serial.println(userId);
   } else {
@@ -98,7 +108,7 @@ void setup() {
 
   if (Firebase.getString(fbdo, URL_TO_CHART_ID)) {
     // Success
-    chartId = fbdo.stringData();
+    chartId = fbdo.stringData().substring(1, fbdo.stringData().length() - 1);
     Serial.print("Chart ID: ");
     Serial.println(chartId);
   } else {
@@ -107,22 +117,12 @@ void setup() {
     Serial.println(fbdo.errorReason());
   }
 
-  URL_TO_CHART += "/charts/kundt/users/" + userId + "/" + chartId;
+  URL_TO_CHART += "/charts/kundtStepper/users/" + userId + "/" + chartId;
 
   Serial.println("Chart Path: " + URL_TO_CHART);
   my_timer = millis();
 
-  // 5. Try to set int data to Firebase
-  // The set function returns bool for the status of operation
-  // fbdo requires for sending the data
-  if (Firebase.setBool(fbdo, URL_TO_IS_READY, true)) {
-    // Success
-    Serial.println("Ready to go");
-  } else {
-    // Failed?, get the error reason from fbdo
-    Serial.print("Error in setBool, ");
-    Serial.println(fbdo.errorReason());
-  }
+  ready();
 
   /* In setup(), set the stream callback function to handle data
     streamCallback is the function that called when database data changes or updates occurred
@@ -149,9 +149,49 @@ void streamCallback(StreamData data) {
   //Print out the value
   Serial.println("bpState Stream " + data.boolData());
 
-  if ( isOk == true) {
-    toExecute = data.boolData();
+  // Получаем частоту сигнала
+  if (Firebase.getInt(fbdo, URL_TO_FREQUENCY)) {
+    // Success
+    frequency = fbdo.intData();
+    Serial.print("frequency: ");
+    Serial.println(frequency);
+  } else {
+    // Failed?, get the error reason from fbdo
+    Serial.print("Error in getInt, ");
+    Serial.println(fbdo.errorReason());
   }
+
+  // Получаем шаг
+  if (Firebase.getInt(fbdo, URL_TO_STEP)) {
+    // Success
+    engineStep = fbdo.intData();
+    Serial.print("step: ");
+    Serial.println(engineStep);
+  } else {
+    // Failed?, get the error reason from fbdo
+    Serial.print("Error in getInt, ");
+    Serial.println(fbdo.errorReason());
+  }
+
+  // расчитываем количество измерений
+  measurementsNumber = trunc (MAX_TUBE_LENGTH / engineStep);
+  Serial.print("measurementsNumber, ");
+  Serial.println(measurementsNumber);
+
+  // Передаем значение ATmega328
+  outbound.streamOneInt(&Serial, "F", frequency); // End the packet and stream it.
+  outbound.streamEmpty(&Serial, "");
+  outbound.streamOneInt(&Serial, "S", engineStep); // End the packet and stream it.
+  outbound.streamEmpty(&Serial, "");
+
+  toExecute = data.boolData();
+
+  if (data.boolData()) {
+    outbound.beginPacket("I");
+    outbound.streamPacket(&Serial);
+    outbound.streamEmpty(&Serial, "");
+  }
+
 }
 
 //Global function that notifies when stream connection lost
@@ -163,45 +203,62 @@ void streamTimeoutCallback(bool timeout) {
   }
 }
 
+void ready() {
+  // 5. Try to set int data to Firebase
+  // The set function returns bool for the status of operation
+  // fbdo requires for sending the data
+  if (Firebase.setBool(fbdo, URL_TO_IS_READY, true)) {
+    // Success
+    Serial.println("Ready to go");
+  } else {
+    // Failed?, get the error reason from fbdo
+    Serial.print("Error in setBool, ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
 void loop(void) {
-
-  if (toExecute == true) {
-    toExecute = false;
-    isOk = false;
-    my_timer = millis();   // "сбросить" таймер
-
-    // Получаем частоту сигнала
-    if (Firebase.getInt(fbdo, URL_TO_FREQUENCY)) {
-      // Success
-      frequency = fbdo.intData();
-      Serial.print("frequency: ");
-      Serial.println(frequency);
-    } else {
-      // Failed?, get the error reason from fbdo
-      Serial.print("Error in getInt, ");
-      Serial.println(fbdo.errorReason());
-    }
-
-    // Передаем значение ATmega328
-    outbound.streamOneInt(&Serial, "f", frequency); // End the packet and stream it.
+  //  Serial.print("toExecute: ");
+  //  Serial.println(toExecute );
+  //  Serial.print("isOk: ");
+  //  Serial.println(isOk );
+  //  Serial.print("isInitialized: ");
+  //  Serial.println(isInitialized );
+  //  Serial.print("measurementCount <= measurementsNumber: ");
+  //  Serial.println(measurementCount <= measurementsNumber);
+  if (toExecute && isOk && isInitialized && measurementCount <= measurementsNumber) {
+    outbound.beginPacket("R");
+    outbound.streamPacket(&Serial);
     outbound.streamEmpty(&Serial, "");
+    my_timer = millis();   // "сбросить" таймер
+    isOk = false;
   }
 
   if ( inbound.parseStream( &Serial ) ) {
-    // parse completed massage elements here.
-    if ( inbound.fullMatch ("v") ) {
-      // Get the first long.
-      long value = inbound.nextLong();
+    if ( inbound.fullMatch ("I") ) {
+      isInitialized = true;
+      measurementCount = 0;
+      isOk = true;
+    }
 
-      jsonXY.set("x", frequency);
+    // parse completed massage elements here.
+    if ( inbound.fullMatch ("V") ) {
+
+      // Get the first long.
+      float value = inbound.nextFloat();
+      jsonXY.set("x", measurementCount * engineStep + INITIAL_TUBE_LENGTH);
       jsonXY.set("y", String(value));
 
-      if (Firebase.setBool(fbdo, URL_TO_EXECUTE, false)) {
-        // Success
-      } else {
-        // Failed?, get the error reason from fbdo
-        Serial.print("Error in setString, ");
-        Serial.println(fbdo.errorReason());
+      if (measurementCount == measurementsNumber) {
+        toExecute = false;
+        isInitialized = false;
+        if (Firebase.setBool(fbdo, URL_TO_EXECUTE, false)) {
+          // Success
+        } else {
+          // Failed?, get the error reason from fbdo
+          Serial.print("Error in setString, ");
+          Serial.println(fbdo.errorReason());
+        }
       }
 
       if (Firebase.pushJSON(fbdo, URL_TO_CHART, jsonXY)) {
@@ -211,6 +268,8 @@ void loop(void) {
       } else {
         Serial.println(fbdo.errorReason());
       }
+
+      measurementCount++;
 
       isOk = true;
     }
