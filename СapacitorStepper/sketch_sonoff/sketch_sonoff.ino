@@ -4,11 +4,11 @@
 #define FIREBASE_HOST "phys-labs.firebaseio.com"
 #define FIREBASE_AUTH "is9YhJowq75WQr9Ioc2M6X3714p4owRZZSXdPiYA"
 // Home WiFi
-//#define WIFI_SSID "4G-UFI-954054"
-//#define WIFI_PASSWORD "DaniIl_1998"
+#define WIFI_SSID "4G-UFI-954054"
+#define WIFI_PASSWORD "DaniIl_1998"
 // Gorchakov
-#define WIFI_SSID "ELTEX-F8BB"
-#define WIFI_PASSWORD "GP21326554"
+// #define WIFI_SSID "ELTEX-F8BB"
+// #define WIFI_PASSWORD "GP21326554"
 // Kolesnikov
 //#define WIFI_SSID "TP-Link_790C"
 //#define WIFI_PASSWORD "16956483"
@@ -22,7 +22,7 @@
 //Define Firebase Data objects
 FirebaseData firebaseData;
 
-String URL_TO_SWITCH_STATE = "labs/kundt/switchState";
+String URL_TO_SWITCH_STATE = "labs/capacitorStepper/switchState";
 String switchState = "off";
 
 int gpio13Led = 13;
@@ -93,8 +93,7 @@ void streamCallback(StreamData data) {
 
 //Global function that notifies when stream connection lost
 //The library will resume the stream connection automatically
-void streamTimeoutCallback(bool timeout)
-{
+void streamTimeoutCallback(bool timeout) {
   if (timeout) {
     //Stream timeout occurred
     //    Serial.println("Stream timeout, resume streaming...");
