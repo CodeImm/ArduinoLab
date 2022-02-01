@@ -4,9 +4,6 @@
 // Include Firebase ESP8266 library
 #include <FirebaseESP8266.h>
 
-// Include FirebaseJson library
-#include <ArduinoJson.h>
-
 // Include AsciiMassage libraries
 #include <AsciiMassagePacker.h>
 #include <AsciiMassageParser.h>
@@ -20,8 +17,11 @@
 // Home WiFi
 // #define WIFI_SSID "TP-Link_790C"
 // #define WIFI_PASSWORD "16956483"
-#define WIFI_SSID "4G-UFI-954054"
-#define WIFI_PASSWORD "DaniIl_1998"
+// Gorchakov
+#define WIFI_SSID "ELTEX-F8BB"
+#define WIFI_PASSWORD "GP21326554"
+//#define WIFI_SSID "4G-UFI-954054"
+//#define WIFI_PASSWORD "DaniIl_1998"
 // 324 WiFi
 //#define WIFI_SSID "koef-324"
 //#define WIFI_PASSWORD "A$pddmIedp"
