@@ -2,6 +2,7 @@
 #include <AsciiMassageParser.h>
 
 #include <Stepper.h>
+#include <Capacitor.h>
 
 AsciiMassageParser inbound;
 AsciiMassagePacker outbound;
@@ -16,10 +17,7 @@ A2 -
 const int OUT_PIN = A2;
 const int IN_PIN = A0;
 const int BUTTON_PIN = 7;  // the Arduino's input pin that connects to the sensor's SIGNAL pin
-const float IN_STRAY_CAP_TO_GND = 24.48;
-const float IN_CAP_TO_GND = IN_STRAY_CAP_TO_GND;
-const float R_PULLUP = 34.8;
-const int MAX_ADC_VALUE = 1023;
+
 
 const int STEPS_PER_REVOLUTION = 48;
 float capacitance;
@@ -32,13 +30,14 @@ bool isInitialized = false;
 bool firstStep = true;
 
 Stepper myStepper(STEPS_PER_REVOLUTION, 8, 9, 10, 11);  //подключение к пинам 8…11 на Ардуино
+Capacitor cap1(OUT_PIN, IN_PIN);
 
 void setup() {
   // initialize the Arduino's pin as aninput
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  pinMode(OUT_PIN, OUTPUT);
-  pinMode(IN_PIN, OUTPUT);
+  // pinMode(OUT_PIN, OUTPUT);
+  // pinMode(IN_PIN, OUTPUT);
 
   myStepper.setSpeed(60);  //установка скорости вращения ротора
   Serial.begin(115200);
@@ -52,7 +51,8 @@ void loop() {
   if (isInitialized == false) {
     // print state to Serial Monitor
     Serial.println(buttonState);
-    myStepper.step(1);
+    myStepper.step(2);
+    delay(10);
   }
 
   if (buttonState == 0 && !isInitialized) {
@@ -83,23 +83,14 @@ void loop() {
         firstStep = false;
           // повернуть до начала соприкосновения пластин
           myStepper.step(-7);
+          delay(5000);
       } else {
         myStepper.step(-engineStep);
       }
 
-      delay(1000);
-      
-        //инициализируем переменные для определения размаха
+      // delay(4000);
 
-        pinMode(IN_PIN, INPUT);
-        digitalWrite(OUT_PIN, HIGH);
-        int val = analogRead(IN_PIN);
-        digitalWrite(OUT_PIN, LOW);
-
-        if (val < 1000) {
-          pinMode(IN_PIN, OUTPUT);
-          capacitance = (float)val * IN_CAP_TO_GND / (float)(MAX_ADC_VALUE - val);
-        }
+  capacitance = cap1.Measure();
 
         Serial.print("Ёмкость: ");
         Serial.println(capacitance);
